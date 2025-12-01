@@ -1,0 +1,135 @@
+name: Firmware Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'firmware/**'
+      - '.github/workflows/firmware-tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'firmware/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Cache PlatformIO
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.platformio
+          ~/.cache/pip
+        key: ${{ runner.os }}-pio-${{ hashFiles('**/platformio.ini') }}
+        restore-keys: |
+          ${{ runner.os }}-pio-
+          
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio
+        
+    - name: Build firmware
+      run: |
+        cd firmware
+        pio run
+        
+    - name: Run unit tests
+      run: |
+        cd firmware
+        pio test
+        
+    - name: Check code format
+      run: |
+        cd firmware
+        pio check --skip-packages
+        
+    - name: Generate build artifacts
+      if: success()
+      run: |
+        cd firmware
+        mkdir -p ../build-artifacts
+        cp .pio/build/nrf52832/firmware.hex ../build-artifacts/
+        cp .pio/build/nrf52832/firmware.bin ../build-artifacts/
+        
+    - name: Upload firmware artifacts
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: firmware-build
+        path: build-artifacts/
+        retention-days: 30
+        
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: firmware/test/
+        retention-days: 7
+        
+    - name: Comment on PR
+      if: github.event_name == 'pull_request' && failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '⚠️ Firmware tests failed. Please check the build logs.'
+          })
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run cppcheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck
+        cd firmware
+        cppcheck --enable=all --inconclusive --xml --xml-version=2 \
+          src/ include/ 2> cppcheck-report.xml || true
+          
+    - name: Upload static analysis results
+      uses: actions/upload-artifact@v3
+      with:
+        name: static-analysis
+        path: firmware/cppcheck-report.xml
+        retention-days: 30
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: 'firmware/'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+

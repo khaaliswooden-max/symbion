@@ -1,0 +1,253 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Generate changelog
+      id: changelog
+      run: |
+        echo "## What's Changed" > CHANGELOG.md
+        git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"* %s (%h)" >> CHANGELOG.md
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body_path: CHANGELOG.md
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-firmware:
+    needs: create-release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install PlatformIO
+      run: pip install platformio
+      
+    - name: Build firmware
+      run: |
+        cd firmware
+        pio run --environment nrf52832
+        
+    - name: Package firmware
+      run: |
+        cd firmware
+        mkdir -p release
+        cp .pio/build/nrf52832/firmware.hex release/symbion-firmware-${GITHUB_REF#refs/tags/}.hex
+        cp .pio/build/nrf52832/firmware.bin release/symbion-firmware-${GITHUB_REF#refs/tags/}.bin
+        
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: firmware/release/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-mobile-android:
+    needs: create-release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        
+    - name: Setup Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Install dependencies
+      run: |
+        cd mobile-app
+        npm ci
+        
+    - name: Build Android release APK
+      run: |
+        cd mobile-app/android
+        ./gradlew assembleRelease
+        
+    - name: Sign APK
+      if: ${{ secrets.ANDROID_KEYSTORE }}
+      run: |
+        # Add signing configuration here
+        echo "Signing APK..."
+        
+    - name: Upload APK to release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: mobile-app/android/app/build/outputs/apk/release/*.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-mobile-ios:
+    needs: create-release
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        
+    - name: Install dependencies
+      run: |
+        cd mobile-app
+        npm ci
+        
+    - name: Install CocoaPods
+      run: |
+        cd mobile-app/ios
+        pod install
+        
+    - name: Build iOS release
+      run: |
+        cd mobile-app/ios
+        xcodebuild archive \
+          -workspace SymbionApp.xcworkspace \
+          -scheme SymbionApp \
+          -configuration Release \
+          -archivePath $PWD/build/SymbionApp.xcarchive
+          
+    - name: Export IPA
+      run: |
+        cd mobile-app/ios
+        xcodebuild -exportArchive \
+          -archivePath $PWD/build/SymbionApp.xcarchive \
+          -exportPath $PWD/build/ipa \
+          -exportOptionsPlist ExportOptions.plist
+          
+    - name: Upload IPA to release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: mobile-app/ios/build/ipa/*.ipa
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-backend:
+    needs: create-release
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: Extract version
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./cloud-backend
+        push: true
+        tags: |
+          symbion/backend:${{ steps.version.outputs.VERSION }}
+          symbion/backend:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: Deploy to production
+      run: |
+        echo "Deploying version ${{ steps.version.outputs.VERSION }} to production..."
+        # Add deployment commands (e.g., kubectl, helm, terraform)
+
+  publish-documentation:
+    needs: create-release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        
+    - name: Generate API documentation
+      run: |
+        cd cloud-backend
+        npm ci
+        npm run docs:generate
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./cloud-backend/docs
+        
+  notify-release:
+    needs: [build-firmware, build-mobile-android, build-mobile-ios, deploy-backend]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      with:
+        status: custom
+        custom_payload: |
+          {
+            text: "🚀 New Symbion release: ${{ github.ref_name }}",
+            attachments: [{
+              color: 'good',
+              text: `Release ${{ github.ref_name }} has been published successfully!`
+            }]
+          }
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        
+    - name: Send email notification
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 465
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "Symbion Release ${{ github.ref_name }}"
+        body: "New release ${{ github.ref_name }} has been published."
+        to: engineering@symbion.health
+        from: ci@symbion.health
+
