@@ -1,0 +1,172 @@
+(kicad_sch (version 20230121) (generator eeschema)
+
+  (uuid "a5c8b5c7-1234-5678-9abc-def012345678")
+
+  (paper "A4")
+
+  (title_block
+    (title "Symbion Gut-Brain Interface")
+    (date "2024-12-01")
+    (rev "1.0")
+    (company "Symbion")
+    (comment 1 "nRF52832-based Biosensor Device")
+    (comment 2 "Wearable Health Monitoring")
+  )
+
+  (lib_symbols
+    (symbol "MCU_Nordic:nRF52832" (in_bom yes) (on_board yes)
+      (property "Reference" "U" (at 0 0 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "nRF52832" (at 0 -2.54 0) (effects (font (size 1.27 1.27))))
+    )
+    (symbol "Regulator_Linear:MCP1700-3302E" (in_bom yes) (on_board yes)
+      (property "Reference" "U" (at 0 0 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "MCP1700-3302E" (at 0 -2.54 0) (effects (font (size 1.27 1.27))))
+    )
+    (symbol "Battery_Management:MCP73831" (in_bom yes) (on_board yes)
+      (property "Reference" "U" (at 0 0 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "MCP73831" (at 0 -2.54 0) (effects (font (size 1.27 1.27))))
+    )
+  )
+
+  (sheet (at 20 20) (size 40 30)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid "12345678-1234-5678-1234-567812345678")
+    (property "Sheet name" "Power Supply" (at 20 19 0) (effects (font (size 1.27 1.27)) (justify left bottom)))
+  )
+
+  (sheet (at 70 20) (size 40 30)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid "23456789-2345-6789-2345-678923456789")
+    (property "Sheet name" "Microcontroller" (at 70 19 0) (effects (font (size 1.27 1.27)) (justify left bottom)))
+  )
+
+  (sheet (at 120 20) (size 40 30)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid "34567890-3456-7890-3456-789034567890")
+    (property "Sheet name" "Sensor Interface" (at 120 19 0) (effects (font (size 1.27 1.27)) (justify left bottom)))
+  )
+
+  (sheet (at 170 20) (size 40 30)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid "45678901-4567-8901-4567-890145678901")
+    (property "Sheet name" "BLE RF" (at 170 19 0) (effects (font (size 1.27 1.27)) (justify left bottom)))
+  )
+
+  ; Power Supply Section
+  (symbol (lib_id "Battery_Management:MCP73831") (at 35 30 0) (unit 1)
+    (uuid "bat-charge-001")
+    (property "Reference" "U1" (at 35 30 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "MCP73831" (at 35 32.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Package_TO_SOT_SMD:SOT-23-5" (at 35 30 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  (symbol (lib_id "Regulator_Linear:MCP1700-3302E") (at 50 30 0) (unit 1)
+    (uuid "ldo-3v3-001")
+    (property "Reference" "U2" (at 50 30 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "MCP1700-3302E" (at 50 32.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Package_TO_SOT_SMD:SOT-23" (at 50 30 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  ; Microcontroller Section
+  (symbol (lib_id "MCU_Nordic:nRF52832") (at 90 35 0) (unit 1)
+    (uuid "mcu-main-001")
+    (property "Reference" "U3" (at 90 35 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "nRF52832-QFAA" (at 90 37.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Package_DFN_QFN:QFN-48-1EP_6x6mm_P0.5mm_EP4.6x4.6mm" (at 90 35 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  ; Sensor Interface - Op-Amps
+  (symbol (lib_id "Amplifier_Operational:MCP6004") (at 135 30 0) (unit 1)
+    (uuid "opamp-cond-001")
+    (property "Reference" "U4" (at 135 30 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "MCP6004" (at 135 32.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Package_SO:SOIC-14_3.9x8.7mm_P1.27mm" (at 135 30 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  ; Crystals
+  (symbol (lib_id "Device:Crystal") (at 105 30 0) (unit 1)
+    (uuid "xtal-32mhz-001")
+    (property "Reference" "Y1" (at 105 30 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "32MHz" (at 105 32.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm" (at 105 30 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  (symbol (lib_id "Device:Crystal") (at 105 40 0) (unit 1)
+    (uuid "xtal-32khz-001")
+    (property "Reference" "Y2" (at 105 40 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "32.768kHz" (at 105 42.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Crystal:Crystal_SMD_3215-2Pin_3.2x1.5mm" (at 105 40 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  ; Temperature Sensor
+  (symbol (lib_id "Sensor_Temperature:LM35") (at 150 35 0) (unit 1)
+    (uuid "temp-sensor-001")
+    (property "Reference" "U5" (at 150 35 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "LM35DZ" (at 150 37.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Package_TO_SOT_SMD:SOT-23" (at 150 35 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  ; Connectors
+  (symbol (lib_id "Connector:USB_C_Receptacle") (at 25 25 0) (unit 1)
+    (uuid "conn-usbc-001")
+    (property "Reference" "J1" (at 25 25 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "USB_C" (at 25 27.54 0) (effects (font (size 1.27 1.27))))
+  )
+
+  (symbol (lib_id "Connector:Conn_01x05") (at 100 50 0) (unit 1)
+    (uuid "conn-swd-001")
+    (property "Reference" "J2" (at 100 50 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "SWD" (at 100 52.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Connector_PinHeader_1.27mm:PinHeader_1x05_P1.27mm_Vertical" (at 100 50 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  ; LED
+  (symbol (lib_id "Device:LED_RGBA") (at 115 45 0) (unit 1)
+    (uuid "led-status-001")
+    (property "Reference" "D1" (at 115 45 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "RGB_LED" (at 115 47.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "LED_SMD:LED_RGB_1210" (at 115 45 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  ; Button
+  (symbol (lib_id "Switch:SW_Push") (at 120 45 0) (unit 1)
+    (uuid "sw-user-001")
+    (property "Reference" "SW1" (at 120 45 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "USER_BTN" (at 120 47.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Button_Switch_SMD:SW_SPST_TL3342" (at 120 45 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  ; Antenna
+  (symbol (lib_id "RF:Antenna_Chip") (at 190 30 0) (unit 1)
+    (uuid "ant-pcb-001")
+    (property "Reference" "AE1" (at 190 30 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "PCB_Antenna" (at 190 32.54 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ; Passives (sample)
+  (symbol (lib_id "Device:R") (at 55 25 0) (unit 1)
+    (uuid "res-001")
+    (property "Reference" "R1" (at 55 25 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "10k" (at 55 27.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Resistor_SMD:R_0603_1608Metric" (at 55 25 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  (symbol (lib_id "Device:C") (at 60 25 0) (unit 1)
+    (uuid "cap-001")
+    (property "Reference" "C1" (at 60 25 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "100nF" (at 60 27.54 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Capacitor_SMD:C_0603_1608Metric" (at 60 25 0) (effects (font (size 1.27 1.27)) hide))
+  )
+
+  ; Wires and connections would be defined here in actual KiCad file
+  ; This is a simplified structure showing the hierarchy
+
+  (sheet_instances
+    (path "/" (page "1"))
+  )
+)
+
