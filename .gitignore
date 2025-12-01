@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+mobile-app/node_modules/
+cloud-backend/node_modules/
+
+# Build outputs
+dist/
+build/
+*.map
+
+# Firmware
+.pio/
+.vscode/
+firmware/.pio/
+firmware/.vscode/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Mobile app specific
+mobile-app/ios/Pods/
+mobile-app/ios/build/
+mobile-app/android/.gradle/
+mobile-app/android/build/
+mobile-app/android/app/build/
+*.apk
+*.aab
+*.ipa
+
+# Testing
+coverage/
+*.lcov
+.nyc_output/
+
+# Temporary
+tmp/
+temp/
+
