@@ -159,8 +159,8 @@ AI/ML for biomarker analysis
 📞 Contact
 Zuup™ Innovation Lab
 A Division of Visionblox LLC
-Director: Khaalis
-Email: symbion@visionblox.com
+Director: Khaalis Wooden
+Email: khaalis.wooden@visionblox.com
 Location: Huntsville, Alabama, USA
 
 📄 Documentation
@@ -209,7 +209,7 @@ Global health equity & LMIC deployment strategies
 📜 License
 Proprietary - All Rights Reserved
 Copyright © 2025 Visionblox LLC | Zuup™ Innovation Lab
-This framework and all associated intellectual property are proprietary to Visionblox LLC. Unauthorized reproduction, distribution, or use is strictly prohibited. For licensing inquiries, contact symbion@visionblox.com.
+This framework and all associated intellectual property are proprietary to Visionblox LLC. Unauthorized reproduction, distribution, or use is strictly prohibited. For licensing inquiries, contact khaalis.wooden@visionblox.com.
 
 🚨 Call to Action
 The technology is within reach. The regulatory pathways exist. The partnerships are forming. All that remains is the will to prioritize equity over profit maximization—to build a future where advanced medical diagnostics are a global public good, not a luxury commodity.
