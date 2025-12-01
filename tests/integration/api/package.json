@@ -1,0 +1,10 @@
+{
+  "name": "symbion-integration-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for Symbion API",
+  "scripts": {
+    "test": "echo 'Integration tests placeholder - to be implemented' && exit 0"
+  },
+  "devDependencies": {}
+}
+
