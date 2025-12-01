@@ -110,25 +110,32 @@ void BLECommsManager::processControlCommands() {
             
             uint8_t command = cmd_buffer[0];
             
+            // Declare external command handlers from main.cpp
+            extern void onStartSampling();
+            extern void onStopSampling();
+            extern void onCalibrate();
+            extern void onSelfTest();
+            extern void onSetInterval(uint16_t);
+            
             switch (command) {
                 case CMD_START_SAMPLING:
                     Serial.println("CMD: Start sampling");
-                    // Signal main loop to start sampling
+                    onStartSampling();
                     break;
                     
                 case CMD_STOP_SAMPLING:
                     Serial.println("CMD: Stop sampling");
-                    // Signal main loop to stop sampling
+                    onStopSampling();
                     break;
                     
                 case CMD_CALIBRATE:
                     Serial.println("CMD: Calibrate");
-                    // Trigger calibration routine
+                    onCalibrate();
                     break;
                     
                 case CMD_SELF_TEST:
                     Serial.println("CMD: Self test");
-                    // Run self-test and report results
+                    onSelfTest();
                     break;
                     
                 case CMD_SET_INTERVAL:
@@ -137,6 +144,7 @@ void BLECommsManager::processControlCommands() {
                         Serial.print("CMD: Set interval to ");
                         Serial.print(interval_ms);
                         Serial.println(" ms");
+                        onSetInterval(interval_ms);
                     }
                     break;
                     
