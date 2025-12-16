@@ -8,11 +8,11 @@ info:
     email: api@symbion.health
 
 servers:
+  - url: http://localhost:3000
+    description: Development server (root)
   - url: http://localhost:3000/api/v1
-    description: Development server
-  - url: https://staging-api.symbion.health/api/v1
-    description: Staging server
-  - url: https://api.symbion.health/api/v1
+    description: Development server (API)
+  - url: https://api.symbion.health
     description: Production server
 
 paths:
@@ -31,12 +31,33 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: ok
+                    example: healthy
                   timestamp:
                     type: string
                     format: date-time
+                  uptime:
+                    type: number
+                  version:
+                    type: string
 
-  /auth/register:
+  /api/v1/status:
+    get:
+      summary: API status endpoint
+      tags:
+        - System
+      responses:
+        '200':
+          description: API status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: operational
+
+  /api/v1/auth/register:
     post:
       summary: Register new user
       tags:
@@ -69,7 +90,7 @@ paths:
         '400':
           description: Invalid input
 
-  /auth/login:
+  /api/v1/auth/login:
     post:
       summary: User login
       tags:
