@@ -7,7 +7,7 @@ import { logger } from '../utils/logger.js';
 export const connectDatabase = async () => {
   try {
     const mongoUri = process.env.NODE_ENV === 'test' 
-      ? process.env.MONGODB_TEST_URI 
+      ? (process.env.MONGODB_TEST_URI || process.env.MONGODB_URI)
       : process.env.MONGODB_URI;
     
     if (!mongoUri) {

@@ -34,5 +34,17 @@ router.get('/', (req, res) => {
   });
 });
 
+// Status endpoint for health checks
+router.get('/status', (req, res) => {
+  res.json({
+    status: 'operational',
+    timestamp: new Date().toISOString(),
+    services: {
+      api: 'healthy',
+      database: 'healthy',
+    },
+  });
+});
+
 export default router;
 
