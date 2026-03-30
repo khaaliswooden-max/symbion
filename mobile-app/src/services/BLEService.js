@@ -146,13 +146,24 @@ function aes128CbcDecrypt(ciphertext, key) {
 
 class BLEService {
   constructor() {
-    this.manager = new BleManager();
+    this._manager = null;
     this.device = null;
     this.subscription = null;
     this.dataCallback = null;
     this.encryptionKey = null;
     this.reassemblyBuffer = [];
     this.expectedLength = 0;
+  }
+
+  get manager() {
+    if (!this._manager) {
+      this._manager = new BleManager();
+    }
+    return this._manager;
+  }
+
+  set manager(value) {
+    this._manager = value;
   }
 
   async startScan(onDeviceFound) {
@@ -216,9 +227,17 @@ class BLEService {
 
   setEncryptionKey(key) {
     if (typeof key === 'string') {
-      this.encryptionKey = new Uint8Array(
-        key.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
-      );
+      if (/^[0-9a-fA-F]+$/.test(key) && key.length % 2 === 0) {
+        this.encryptionKey = new Uint8Array(
+          key.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+        );
+      } else {
+        const bytes = new Uint8Array(16);
+        for (let i = 0; i < Math.min(key.length, 16); i++) {
+          bytes[i] = key.charCodeAt(i) & 0xff;
+        }
+        this.encryptionKey = bytes;
+      }
     } else {
       this.encryptionKey = new Uint8Array(key);
     }
@@ -323,6 +342,11 @@ class BLEService {
   }
 
   parseData(rawBytes) {
+    // Backward compatibility: accept base64 string or Uint8Array
+    if (typeof rawBytes === 'string') {
+      rawBytes = new Uint8Array(Buffer.from(rawBytes, 'base64'));
+    }
+
     let decrypted;
 
     if (this.encryptionKey) {
