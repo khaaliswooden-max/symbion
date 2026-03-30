@@ -1,10 +1,28 @@
-// src/controllers/analytics.controller.js
-// Analytics controller - handles analytics endpoints
-
 import { validationResult } from 'express-validator';
+import SensorReading from '../models/SensorReading.js';
 import * as analyticsService from '../services/analytics.service.js';
 import { BadRequestError, NotFoundError } from '../middleware/errorHandler.js';
 import { logger } from '../utils/logger.js';
+
+const PERIOD_MS = {
+  day: 86400000,
+  week: 604800000,
+  month: 2592000000,
+  year: 31536000000,
+};
+
+async function fetchReadings(userId, deviceId, periodMs, limit = 5000) {
+  const filter = { userId };
+  if (deviceId) filter.deviceId = deviceId;
+  if (periodMs) {
+    filter.timestamp_ms = { $gte: Date.now() - periodMs };
+  }
+
+  return SensorReading.find(filter)
+    .sort({ timestamp_ms: 1 })
+    .limit(limit)
+    .lean();
+}
 
 /**
  * Get analytics summary
@@ -13,17 +31,27 @@ import { logger } from '../utils/logger.js';
 export async function getSummary(req, res, next) {
   try {
     const { deviceId, period = 'week' } = req.query;
-    
-    // TODO: Fetch readings from database
-    // For now, return mock data structure
-    const mockReadings = generateMockReadings(100);
-    
+
+    const readings = await fetchReadings(req.user.id, deviceId, PERIOD_MS[period]);
+
+    if (readings.length === 0) {
+      return res.json({
+        period,
+        deviceId,
+        readingCount: 0,
+        analytics: [],
+        generatedAt: new Date().toISOString(),
+      });
+    }
+
+    const analytes = ['serotonin_nm', 'dopamine_nm', 'gaba_nm', 'ph_level'];
+
     const analytics = analytes.map(analyte => {
-      const data = mockReadings.map(r => r[analyte]);
+      const data = readings.map(r => r[analyte]);
       const stats = analyticsService.calculateStats(data);
       const trend = analyticsService.detectTrend(data);
       const anomalies = analyticsService.detectAnomalies(data);
-      
+
       return {
         analyte,
         stats,
@@ -31,11 +59,11 @@ export async function getSummary(req, res, next) {
         anomalyCount: anomalies.length,
       };
     });
-    
+
     res.json({
       period,
       deviceId,
-      readingCount: mockReadings.length,
+      readingCount: readings.length,
       analytics,
       generatedAt: new Date().toISOString(),
     });
@@ -54,16 +82,32 @@ export async function getTrends(req, res, next) {
     if (!errors.isEmpty()) {
       throw new BadRequestError('Validation failed', errors.array());
     }
-    
+
     const { deviceId, analyte, interval = 'day' } = req.query;
-    
-    // TODO: Fetch readings from database
-    const mockReadings = generateMockReadings(168); // 1 week hourly
-    
-    const data = mockReadings.map(r => r[analyte || 'serotonin_nm']);
-    
+
+    const periodMs = interval === 'hour' ? PERIOD_MS.day
+                   : interval === 'week' ? PERIOD_MS.month
+                   : PERIOD_MS.week;
+
+    const readings = await fetchReadings(req.user.id, deviceId, periodMs);
+
+    if (readings.length === 0) {
+      return res.json({
+        analyte: analyte || 'serotonin_nm',
+        interval,
+        dataPoints: 0,
+        trend: null,
+        movingAverage: [],
+        forecast: [],
+        changePoints: [],
+      });
+    }
+
+    const analyteKey = analyte ? `${analyte}_nm` : 'serotonin_nm';
+    const data = readings.map(r => r[analyteKey] || r[analyte] || 0);
+
     const analysis = {
-      analyte: analyte || 'serotonin_nm',
+      analyte: analyteKey,
       interval,
       dataPoints: data.length,
       trend: analyticsService.detectTrend(data),
@@ -71,7 +115,7 @@ export async function getTrends(req, res, next) {
       forecast: analyticsService.forecastValues(data, 24),
       changePoints: analyticsService.detectChangePoints(data),
     };
-    
+
     res.json(analysis);
   } catch (error) {
     next(error);
@@ -85,20 +129,28 @@ export async function getTrends(req, res, next) {
 export async function getCorrelations(req, res, next) {
   try {
     const { deviceId } = req.query;
-    
+
     if (!deviceId) {
       throw new BadRequestError('deviceId is required');
     }
-    
-    // TODO: Fetch readings from database
-    const mockReadings = generateMockReadings(100);
-    
-    const correlationMatrix = analyticsService.correlationMatrix(mockReadings);
-    
-    // Calculate strongest correlations
-    const correlations = [];
+
+    const readings = await fetchReadings(req.user.id, deviceId, PERIOD_MS.month);
+
+    if (readings.length < 5) {
+      return res.json({
+        deviceId,
+        matrix: {},
+        strongestCorrelations: [],
+        readingCount: readings.length,
+        message: 'Not enough data for correlation analysis (minimum 5 readings)',
+      });
+    }
+
+    const correlationMatrix = analyticsService.correlationMatrix(readings);
+
     const analytes = ['serotonin_nm', 'dopamine_nm', 'gaba_nm', 'ph_level'];
-    
+    const correlations = [];
+
     analytes.forEach((a1, i) => {
       analytes.slice(i + 1).forEach(a2 => {
         const corr = correlationMatrix[a1][a2];
@@ -111,17 +163,16 @@ export async function getCorrelations(req, res, next) {
         }
       });
     });
-    
-    // Sort by strength
-    correlations.sort((a, b) => 
+
+    correlations.sort((a, b) =>
       Math.abs(b.coefficient) - Math.abs(a.coefficient)
     );
-    
+
     res.json({
       deviceId,
       matrix: correlationMatrix,
       strongestCorrelations: correlations.slice(0, 5),
-      readingCount: mockReadings.length,
+      readingCount: readings.length,
     });
   } catch (error) {
     next(error);
@@ -135,22 +186,31 @@ export async function getCorrelations(req, res, next) {
 export async function detectAnomalies(req, res, next) {
   try {
     const { deviceId, sensitivity = 2.5 } = req.query;
-    
+
     if (!deviceId) {
       throw new BadRequestError('deviceId is required');
     }
-    
-    // TODO: Fetch readings from database
-    const mockReadings = generateMockReadings(200);
-    
+
+    const readings = await fetchReadings(req.user.id, deviceId, PERIOD_MS.month);
+
+    if (readings.length < 10) {
+      return res.json({
+        deviceId,
+        sensitivity: parseFloat(sensitivity),
+        anomalies: {},
+        riskAssessment: { overall: 'insufficient_data' },
+        insights: [{ type: 'info', message: 'Need at least 10 readings for anomaly detection' }],
+      });
+    }
+
     const anomalyReport = {};
     const analytes = ['serotonin_nm', 'dopamine_nm', 'gaba_nm', 'ph_level'];
-    
+
     analytes.forEach(analyte => {
-      const data = mockReadings.map(r => r[analyte]);
+      const data = readings.map(r => r[analyte]);
       const anomalies = analyticsService.detectAnomalies(data, parseFloat(sensitivity));
       const anomaliesMAD = analyticsService.detectAnomaliesMAD(data);
-      
+
       anomalyReport[analyte] = {
         zScore: anomalies,
         mad: anomaliesMAD,
@@ -158,8 +218,7 @@ export async function detectAnomalies(req, res, next) {
         percentage: ((anomalies.length / data.length) * 100).toFixed(1),
       };
     });
-    
-    // Get overall health risk
+
     const referenceRanges = {
       serotonin: { min: 50, max: 200 },
       dopamine: { min: 100, max: 500 },
@@ -167,18 +226,15 @@ export async function detectAnomalies(req, res, next) {
       ph_level: { min: 6.5, max: 7.5 },
       calprotectin: { min: 0, max: 50 },
     };
-    
-    const riskAssessment = analyticsService.assessHealthRisk(
-      mockReadings,
-      referenceRanges
-    );
-    
+
+    const riskAssessment = analyticsService.assessHealthRisk(readings, referenceRanges);
+
     res.json({
       deviceId,
       sensitivity: parseFloat(sensitivity),
       anomalies: anomalyReport,
       riskAssessment,
-      insights: analyticsService.generateInsights(mockReadings),
+      insights: analyticsService.generateInsights(readings),
     });
   } catch (error) {
     next(error);
@@ -192,17 +248,25 @@ export async function detectAnomalies(req, res, next) {
 export async function exportData(req, res, next) {
   try {
     const { deviceId, startDate, endDate } = req.query;
-    
+
     if (!deviceId) {
       throw new BadRequestError('deviceId is required');
     }
-    
-    // TODO: Fetch readings from database with date filter
-    const mockReadings = generateMockReadings(100);
-    
-    // Generate CSV
-    const csv = generateCSV(mockReadings);
-    
+
+    const filter = { userId: req.user.id, deviceId };
+    if (startDate || endDate) {
+      filter.timestamp_ms = {};
+      if (startDate) filter.timestamp_ms.$gte = new Date(startDate).getTime();
+      if (endDate) filter.timestamp_ms.$lte = new Date(endDate).getTime();
+    }
+
+    const readings = await SensorReading.find(filter)
+      .sort({ timestamp_ms: 1 })
+      .limit(50000)
+      .lean();
+
+    const csv = generateCSV(readings);
+
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
       'Content-Disposition',
@@ -214,29 +278,6 @@ export async function exportData(req, res, next) {
   }
 }
 
-// Helper functions
-
-const analytes = ['serotonin_nm', 'dopamine_nm', 'gaba_nm', 'ph_level'];
-
-function generateMockReadings(count) {
-  const readings = [];
-  const baseTime = Date.now() - (count * 3600000); // Start from count hours ago
-  
-  for (let i = 0; i < count; i++) {
-    readings.push({
-      serotonin_nm: 100 + Math.random() * 100 + Math.sin(i / 10) * 20,
-      dopamine_nm: 250 + Math.random() * 150 + Math.cos(i / 8) * 30,
-      gaba_nm: 600 + Math.random() * 300 + Math.sin(i / 12) * 50,
-      ph_level: 7.0 + Math.random() * 0.4,
-      temperature_c: 36.5 + Math.random() * 1.0,
-      calprotectin_ug_g: 20 + Math.random() * 25,
-      timestamp_ms: baseTime + (i * 3600000),
-    });
-  }
-  
-  return readings;
-}
-
 function generateCSV(readings) {
   const headers = [
     'Timestamp',
@@ -244,12 +285,13 @@ function generateCSV(readings) {
     'Dopamine (nM)',
     'GABA (nM)',
     'pH Level',
-    'Temperature (°C)',
-    'Calprotectin (µg/g)',
+    'Temperature (C)',
+    'Calprotectin (ug/g)',
+    'Quality',
   ];
-  
+
   let csv = headers.join(',') + '\n';
-  
+
   readings.forEach(reading => {
     const row = [
       new Date(reading.timestamp_ms).toISOString(),
@@ -259,10 +301,10 @@ function generateCSV(readings) {
       reading.ph_level.toFixed(2),
       reading.temperature_c.toFixed(2),
       reading.calprotectin_ug_g.toFixed(2),
+      reading.quality || 'good',
     ];
     csv += row.join(',') + '\n';
   });
-  
+
   return csv;
 }
-

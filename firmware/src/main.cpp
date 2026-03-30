@@ -8,6 +8,7 @@
 #include "ble_comms.h"
 #include "power_manager.h"
 #include "device_info.h"
+#include "key_manager.h"
 
 // Global instances
 SensorManager sensorManager;
@@ -15,6 +16,7 @@ SignalProcessor signalProcessor;
 BLECommsManager bleComms;
 PowerManager powerManager;
 DeviceInfoManager deviceInfo;
+KeyManager keyManager;
 
 // Sampling configuration
 #define SAMPLING_INTERVAL_MS    1000    // 1 Hz default
@@ -37,11 +39,8 @@ KalmanState serotonin_kalman;
 KalmanState dopamine_kalman;
 KalmanState gaba_kalman;
 
-// AES encryption key (should be set via secure pairing in production)
-const uint8_t aes_key[16] = {
-    0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
-    0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
-};
+// AES encryption key - provisioned via secure BLE pairing
+// No longer hardcoded; managed by KeyManager with flash persistence
 
 void setup() {
     // Initialize serial for debugging
@@ -82,10 +81,24 @@ void setup() {
     SignalProcessor::initKalmanState(&gaba_kalman, 500.0f, 0.1f, 20.0f);
     Serial.println("OK");
     
+    // Initialize key management
+    Serial.print("Initializing key manager... ");
+    keyManager.init();
+    if (keyManager.isProvisioned()) {
+        Serial.println("OK (key loaded from flash)");
+    } else {
+        Serial.println("OK (awaiting key provisioning via BLE)");
+    }
+
     // Initialize BLE
     Serial.print("Initializing BLE... ");
     bleComms.init();
-    bleComms.setEncryptionKey(aes_key);
+
+    // Set encryption key from key manager if provisioned
+    uint8_t currentKey[16];
+    if (keyManager.getKey(currentKey)) {
+        bleComms.setEncryptionKey(currentKey);
+    }
     Serial.println("OK");
     
     // Initialize device info & battery services
@@ -232,6 +245,19 @@ extern "C" {
         Serial.print("Sampling interval set to ");
         Serial.print(interval_ms);
         Serial.println(" ms");
+    }
+
+    void onProvisionKey(const uint8_t* key, uint8_t keyLen) {
+        Serial.println("Provisioning encryption key...");
+        if (keyManager.provisionKey(key, keyLen)) {
+            uint8_t sessionKey[16];
+            if (keyManager.getKey(sessionKey)) {
+                bleComms.setEncryptionKey(sessionKey);
+                Serial.println("Encryption key provisioned and active");
+            }
+        } else {
+            Serial.println("Key provisioning failed");
+        }
     }
 }
 
