@@ -8,7 +8,7 @@
 // BLE service and characteristics
 static BLEService sensorService(SERVICE_UUID);
 static BLECharacteristic sensorDataChar(SENSOR_DATA_UUID, BLERead | BLENotify, BLE_TX_BUFFER_SIZE);
-static BLECharacteristic controlChar(CONTROL_UUID, BLEWrite | BLERead, 8);
+static BLECharacteristic controlChar(CONTROL_UUID, BLEWrite | BLERead, 20);
 
 // Connection state
 static bool ble_connected = false;
@@ -102,10 +102,10 @@ void BLECommsManager::processControlCommands() {
     BLE.poll();
     
     if (controlChar.written()) {
-        uint8_t cmd_buffer[8];
+        uint8_t cmd_buffer[20];
         int len = controlChar.valueLength();
-        
-        if (len > 0 && len <= 8) {
+
+        if (len > 0 && len <= 20) {
             memcpy(cmd_buffer, controlChar.value(), len);
             
             uint8_t command = cmd_buffer[0];
@@ -116,7 +116,8 @@ void BLECommsManager::processControlCommands() {
             extern void onCalibrate();
             extern void onSelfTest();
             extern void onSetInterval(uint16_t);
-            
+            extern void onProvisionKey(const uint8_t*, uint8_t);
+
             switch (command) {
                 case CMD_START_SAMPLING:
                     Serial.println("CMD: Start sampling");
@@ -148,6 +149,15 @@ void BLECommsManager::processControlCommands() {
                     }
                     break;
                     
+                case CMD_SET_KEY:
+                    if (len >= 17) { // 1 byte cmd + 16 bytes key
+                        Serial.println("CMD: Provision encryption key");
+                        onProvisionKey(cmd_buffer + 1, len - 1);
+                    } else {
+                        Serial.println("CMD: Key provisioning failed - invalid key data");
+                    }
+                    break;
+
                 case CMD_REQUEST_STATUS:
                     Serial.println("CMD: Status request");
                     // Send device status

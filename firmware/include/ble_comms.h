@@ -21,7 +21,8 @@
 #define CMD_CALIBRATE       0x03
 #define CMD_SELF_TEST       0x04
 #define CMD_SET_INTERVAL    0x05
-#define CMD_REQUEST_STATUS  0x06
+#define CMD_SET_KEY         0x06
+#define CMD_REQUEST_STATUS  0x07
 
 class BLECommsManager {
 public:
